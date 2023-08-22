@@ -232,7 +232,6 @@
         let assemble_result = 0;
         document.binaryForm.binaryText.value = "";
         for(let i = 0; i < assembly.length; i++) {
-          console.log(assembly[i]);
           if(assembly[i].trim() == "") {
             //document.binaryForm.binaryText.value += "\n";
           } else {
@@ -245,7 +244,6 @@
             }
           }
         }
-        console.log(assemble_result);
         if(assemble_result == 1) {
           document.getElementById("emulate_button").disabled = true;
         } else {
@@ -398,8 +396,6 @@
           case "RType" :
             rs1_data = RegisterFile[GetRs1Addr(binary_line)];
             rs2_data = RegisterFile[GetRs2Addr(binary_line)];
-            console.log(rs1_data);
-            console.log(rs2_data);
             RegisterFile[GetRdAddr(binary_line)] = ALU(GetOpcode_num(binary_line), rs2_data, rs1_data);
             RegisterFile[0] = 0;
             if(GetRdAddr(binary_line) != 0) {
@@ -420,7 +416,15 @@
           case "LType" :
             rs1_data = RegisterFile[GetRs1Addr(binary_line)];
             imm_data = GetImm_num(binary_line);
-            RegisterFile[GetRdAddr(binary_line)] = DataMemory[ALU(GetOpcode_num(binary_line), imm_data, rs1_data) >> 1];
+            if (ALU(GetOpcode_num(binary_line), imm_data, rs1_data) == 124) {
+              if(document.getElementById("mmio_button").checked) {
+                RegisterFile[GetRdAddr(binary_line)] = 1;
+              } else {
+                RegisterFile[GetRdAddr(binary_line)] = 0;
+              }
+            } else {
+              RegisterFile[GetRdAddr(binary_line)] = DataMemory[ALU(GetOpcode_num(binary_line), imm_data, rs1_data) >> 1];
+            }
             RegisterFile[0] = 0;
             if(GetRdAddr(binary_line) != 0) {
               document.getElementById(RegisterName[GetRdAddr(binary_line) - 1]).value = RegisterFile[GetRdAddr(binary_line)];
@@ -431,7 +435,7 @@
             rs1_data = RegisterFile[GetRs1Addr(binary_line)];
             rs2_data = RegisterFile[GetRs2Addr(binary_line)];
             imm_data = GetImm_num(binary_line);
-            DataMemory[ALU(GetOpcode_num(binary_line), imm_data, rs1_data) >> 1] = RegisterFile[GetRdAddr(binary_line)];
+            DataMemory[ALU(GetOpcode_num(binary_line), imm_data, rs1_data) >> 1] = rs2_data;
             RegisterFile[0] = 0;
             if(GetRdAddr(binary_line) != 0) {
               document.getElementById(RegisterName[GetRdAddr(binary_line) - 1]).value = RegisterFile[GetRdAddr(binary_line)];
@@ -468,8 +472,11 @@
             }
             break;
         }
+        document.getElementById("mmio_led").value = ("000000" + (DataMemory[122 >> 1]).toString(2)).slice(-6);
       }
       function Emulate() {
+        // Disable Assemble Button
+        document.getElementById("assemble_button").disabled = true;
         // Disable Run Button
         document.getElementById("emulate_button").disabled = true;
         // Enable Reset Button
@@ -485,7 +492,7 @@
             alert("[ERROR] Blank Register Value");
             document.getElementById(RegisterName[i]).value = 0;
             RegisterFile[i+1] = 0;
-          } else if((-1 < regnum ) && (regnum < 256)) {
+          } else if((-1 < regnum ) && (regnum < 65536)) {
             RegisterFile[i+1] = regnum;
           } else {
             alert("[ERROR] Invalid Register Value");
@@ -493,7 +500,9 @@
             RegisterFile[i+1] = 0;
           }
         }
-
+        // init mmio
+        DataMemory[124 >> 1] = 0;
+        DataMemory[122 >> 1] = 0;
         let assembly_line = document.assemblyForm.assemblyText.value.split('\n')[0];
         document.getElementById("curinstr").value = assembly_line;
         let binary_line = document.binaryForm.binaryText.value.split('\n')[0];
@@ -501,6 +510,8 @@
         NextCycle();
       }
       function Reset() {
+        // Enable Assemble Button
+        document.getElementById("assemble_button").disabled = false;
         // Enable Run Button
         document.getElementById("emulate_button").disabled = false;
         // Disable Reset Button
@@ -620,6 +631,24 @@
     Current Instr : <input type="text" id="curinstr" disabled="true"/> <br>
     PC : <input type="number" id="pc" min=0 value=0 disabled="true"/> <br>
     <button onclick="NextCycle();" id="Next_button" disabled>next cycle</button>
+
+          </td>
+          <td>
+            <table border="1">
+              <caption>MMIO</caption>
+              <tbody>
+                <tr>
+                  <td>122</td>
+                  <td>LED</td>
+                  <td><input type="number" id="mmio_led" value="000000" disabled></td>
+                </tr>
+                <tr>
+                  <td>124</td>
+                  <td>button</td>
+                  <td><input type="checkbox" id="mmio_button"/></td>
+                </tr>
+              </tbody>
+            </table>
 
           </td>
         </tr>
